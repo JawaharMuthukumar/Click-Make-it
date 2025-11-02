@@ -1,0 +1,7 @@
+{
+  "name": "Click & Make It – AI Meal Maker",
+  "description": "Turn whatever you have into a real meal. Instantly. Snap a photo or list your ingredients, choose a cuisine, and get a simple recipe right now.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
