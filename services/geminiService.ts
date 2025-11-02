@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 import type { Recipe } from '../types';
 
 if (!process.env.API_KEY) {
@@ -36,17 +36,22 @@ export const extractIngredientsFromImage = async (file: File): Promise<string> =
     return response.text.trim();
 }
 
-export const generateRecipe = async (ingredients: string, cuisine: string): Promise<Recipe> => {
+export const generateRecipe = async (ingredients: string, cuisine: string, tasteProfile: string): Promise<Recipe> => {
     const prompt = `
         Given the following ingredients: ${ingredients}.
         And the desired cuisine: ${cuisine === 'Any' ? 'any cuisine' : cuisine}.
+        And the desired taste profile is: ${tasteProfile}. Please emphasize this taste in the recipe's ingredients and instructions.
 
         Generate a simple recipe that an amateur cook can make.
         Provide a creative name for the recipe.
         Provide a short, one-sentence description.
         List the necessary ingredients (can include minor additions like salt, pepper, oil if essential).
         Provide clear, step-by-step instructions.
-        Finally, provide an estimated macronutrient breakdown (protein, carbohydrates, fat) in grams for a single serving.
+        Finally, provide a detailed nutritional analysis for a single serving. This should include:
+        - An estimated calorie range as a string (e.g., "~450-500 kcal").
+        - For Protein: provide an estimated range in grams as a string (e.g., "38-42g") and a brief description of the primary sources.
+        - For Carbohydrates: provide an estimated range in grams as a string (e.g., "40-45g") and a brief description of the primary sources.
+        - For Fat: provide an estimated range in grams as a string (e.g., "10-14g") and a brief description of the primary sources.
     `;
 
     const response = await ai.models.generateContent({
@@ -67,17 +72,39 @@ export const generateRecipe = async (ingredients: string, cuisine: string): Prom
                         type: Type.ARRAY,
                         items: { type: Type.STRING }
                     },
-                    macronutrients: {
+                    nutrition: {
                         type: Type.OBJECT,
                         properties: {
-                            protein: { type: Type.NUMBER, description: "Protein in grams" },
-                            carbohydrates: { type: Type.NUMBER, description: "Carbohydrates in grams" },
-                            fat: { type: Type.NUMBER, description: "Fat in grams" },
+                            calories: { type: Type.STRING, description: "Estimated calorie range, e.g., '~450-500 kcal'" },
+                            protein: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    amount: { type: Type.STRING, description: "e.g., '38-42g'" },
+                                    source: { type: Type.STRING, description: "Primary sources of protein" }
+                                },
+                                required: ["amount", "source"]
+                            },
+                            carbohydrates: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    amount: { type: Type.STRING, description: "e.g., '40-45g'" },
+                                    source: { type: Type.STRING, description: "Primary sources of carbohydrates" }
+                                },
+                                required: ["amount", "source"]
+                            },
+                            fat: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    amount: { type: Type.STRING, description: "e.g., '10-14g'" },
+                                    source: { type: Type.STRING, description: "Primary sources of fat" }
+                                },
+                                required: ["amount", "source"]
+                            }
                         },
-                        required: ["protein", "carbohydrates", "fat"]
+                        required: ["calories", "protein", "carbohydrates", "fat"]
                     },
                 },
-                required: ["recipeName", "description", "ingredients", "instructions", "macronutrients"],
+                required: ["recipeName", "description", "ingredients", "instructions", "nutrition"],
             },
         },
     });
@@ -89,4 +116,29 @@ export const generateRecipe = async (ingredients: string, cuisine: string): Prom
         console.error("Failed to parse recipe JSON:", e);
         throw new Error("The AI returned an unexpected format. Please try again.");
     }
+};
+
+export const startChat = (recipe: Recipe): Chat => {
+    const recipeContext = `
+      You are a helpful, friendly cooking assistant. The user is currently making the following recipe and has some questions.
+      Your answers should be concise and directly related to the recipe context provided below.
+      Do not suggest completely different recipes unless asked for a substitution.
+
+      RECIPE CONTEXT:
+      - Recipe Name: ${recipe.recipeName}
+      - Description: ${recipe.description}
+      - Ingredients: ${recipe.ingredients.join(', ')}
+      - Instructions:
+      ${recipe.instructions.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+      - Nutrition: Calories: ${recipe.nutrition.calories}, Protein: ${recipe.nutrition.protein.amount}, Carbs: ${recipe.nutrition.carbohydrates.amount}, Fat: ${recipe.nutrition.fat.amount}
+    `;
+
+    const chat = ai.chats.create({
+        model: 'gemini-2.5-flash',
+        config: {
+            systemInstruction: recipeContext,
+        },
+    });
+
+    return chat;
 };
