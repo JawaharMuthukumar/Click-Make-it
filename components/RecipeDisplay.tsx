@@ -5,10 +5,12 @@ import { ListChecksIcon } from './icons/ListChecksIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
 import ChatAssistant from './ChatAssistant';
+import { COOKING_METHODS } from '../constants';
 
 interface RecipeDisplayProps {
   recipe: Recipe;
   onReset: () => void;
+  onRegenerate: (newMethod: string) => void;
 }
 
 const NutritionInfo: React.FC<{ nutrition: DetailedNutrition }> = ({ nutrition }) => {
@@ -49,15 +51,43 @@ const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.
   </div>
 );
 
-const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, onReset }) => {
+const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, onReset, onRegenerate }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const otherMethods = COOKING_METHODS.filter(m => m !== recipe.cookingMethod);
   
   return (
     <div className="animate-fade-in w-full">
       <div className="bg-surface rounded-2xl shadow-lg overflow-hidden p-6 md:p-8">
-        <h2 className="font-display text-4xl md:text-5xl font-bold text-primary">{recipe.recipeName}</h2>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <h2 className="font-display text-4xl md:text-5xl font-bold text-primary">{recipe.recipeName}</h2>
+            {recipe.servings && (
+                <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-3 py-1 rounded-full">
+                    Serves {recipe.servings}
+                </span>
+            )}
+        </div>
         <p className="mt-3 text-lg text-text-secondary">{recipe.description}</p>
         
+        {/* Change Method Section */}
+        {recipe.cookingMethod && otherMethods.length > 0 && (
+          <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-border-color">
+            <p className="text-sm font-semibold text-text-primary mb-2">
+              This recipe is for a <span className="font-bold">{recipe.cookingMethod}</span>. Want to try a different method?
+            </p>
+            <div className="flex gap-2">
+              {otherMethods.map(method => (
+                <button
+                  key={method}
+                  onClick={() => onRegenerate(method)}
+                  className="bg-white border border-border-color text-sm text-text-primary font-semibold px-3 py-1 rounded-md hover:bg-primary hover:text-white transition-colors"
+                >
+                  Make it in the {method}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Section title="Ingredients" icon={<LeafIcon className="w-7 h-7 text-primary" />}>
           <ul className="space-y-2 text-text-primary pl-1">
             {recipe.ingredients.map((item, index) => 

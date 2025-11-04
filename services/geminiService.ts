@@ -36,17 +36,29 @@ export const extractIngredientsFromImage = async (file: File): Promise<string> =
     return response.text.trim();
 }
 
-export const generateRecipe = async (ingredients: string, cuisine: string, tasteProfile: string): Promise<Recipe> => {
+export const generateRecipe = async (
+    ingredients: string, 
+    cuisine: string, 
+    tasteProfile: string,
+    servings: number,
+    cookingMethod: string,
+    cookingStyle: string
+): Promise<Recipe> => {
     const prompt = `
-        Given the following ingredients: ${ingredients}.
-        And the desired cuisine: ${cuisine === 'Any' ? 'any cuisine' : cuisine}.
-        And the desired taste profile is: ${tasteProfile}. Please emphasize this taste in the recipe's ingredients and instructions.
+        Given the following constraints:
+        - Ingredients: ${ingredients}
+        - Desired Cuisine: ${cuisine === 'Any' ? 'any Indian regional style' : cuisine}
+        - Desired Taste Profile: ${tasteProfile} (Please emphasize this taste in the recipe)
+        - Number of Servings: ${servings}
+        - Primary Cooking Appliance: ${cookingMethod === 'No-Cook' ? 'None (the recipe should require no heat or cooking, like a fresh salad, sandwich, or wrap)' : cookingMethod}
+        - Desired Cooking Style: ${cookingStyle}
 
-        Generate a simple recipe that an amateur cook can make.
+        Generate a simple recipe that an amateur cook can make. The recipe should be authentic and representative of the selected Indian cuisine. For example, if the cuisine is 'Tamil Nadu', a dish like Sambar or Poriyal would be appropriate. If it's 'Punjabi', something like a simple dal makhani or a tandoori-style dish would be great.
+        IMPORTANT: Adapt the traditional recipe to creatively incorporate the user's provided ingredients, even if they are not typical for that cuisine. The final dish must have a distinctly Indian flavor profile.
         Provide a creative name for the recipe.
         Provide a short, one-sentence description.
-        List the necessary ingredients (can include minor additions like salt, pepper, oil if essential).
-        Provide clear, step-by-step instructions.
+        List the necessary ingredients (can include minor additions like salt, pepper, oil if essential), scaled for the specified number of servings.
+        Provide clear, step-by-step instructions. ${cookingMethod === 'No-Cook' ? 'These instructions must not involve any cooking, boiling, or heating.' : 'These instructions should primarily use the specified cooking appliance.'}
         Finally, provide a detailed nutritional analysis for a single serving. This should include:
         - An estimated calorie range as a string (e.g., "~450-500 kcal").
         - For Protein: provide an estimated range in grams as a string (e.g., "38-42g") and a brief description of the primary sources.
@@ -111,7 +123,13 @@ export const generateRecipe = async (ingredients: string, cuisine: string, taste
 
     const jsonText = response.text;
     try {
-        return JSON.parse(jsonText) as Recipe;
+        const recipeData = JSON.parse(jsonText) as Recipe;
+        recipeData.servings = servings;
+        recipeData.cookingMethod = cookingMethod;
+        recipeData.cuisine = cuisine;
+        recipeData.tasteProfile = tasteProfile;
+        recipeData.cookingStyle = cookingStyle;
+        return recipeData;
     } catch (e) {
         console.error("Failed to parse recipe JSON:", e);
         throw new Error("The AI returned an unexpected format. Please try again.");
@@ -120,7 +138,7 @@ export const generateRecipe = async (ingredients: string, cuisine: string, taste
 
 export const startChat = (recipe: Recipe): Chat => {
     const recipeContext = `
-      You are a helpful, friendly cooking assistant. The user is currently making the following recipe and has some questions.
+      You are a helpful, friendly cooking assistant specializing in Indian cuisine. The user is currently making the following recipe and has some questions.
       Your answers should be concise and directly related to the recipe context provided below.
       Do not suggest completely different recipes unless asked for a substitution.
 

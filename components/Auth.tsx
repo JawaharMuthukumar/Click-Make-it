@@ -49,7 +49,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onBackToHome }) => {
                 {mode === 'login' ? 'Welcome Back!' : 'Create Your Account'}
             </h2>
             <p className="text-text-secondary mt-2">
-                {mode === 'login' ? 'Log in to continue your culinary journey.' : 'Sign up to get started with AI-powered recipes.'}
+                {mode === 'login' ? 'Log in to continue your culinary journey.' : 'Sign up and get your first 10 AI-generated recipes for free.'}
             </p>
         </div>
 

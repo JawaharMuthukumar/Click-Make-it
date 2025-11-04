@@ -1,5 +1,5 @@
-import React from 'react';
-import { TASTE_PROFILES } from '../constants';
+import React, { useState } from 'react';
+import { TASTE_PROFILES, TASTE_SUGGESTIONS } from '../constants';
 import { SparklesIcon } from './icons/SparklesIcon';
 
 interface TasteSelectorProps {
@@ -11,6 +11,8 @@ interface TasteSelectorProps {
 }
 
 const TasteSelector: React.FC<TasteSelectorProps> = ({ ingredients, cuisine, onSelect, onBack, error }) => {
+  const [selectedTaste, setSelectedTaste] = useState<string | null>(null);
+
   return (
     <div className="w-full max-w-2xl mx-auto animate-fade-in-slide-up text-center">
        <button onClick={onBack} className="text-sm text-text-secondary hover:text-text-primary mb-6 transition-colors">&larr; Change Cuisine</button>
@@ -36,13 +38,29 @@ const TasteSelector: React.FC<TasteSelectorProps> = ({ ingredients, cuisine, onS
         {TASTE_PROFILES.map((taste) => (
           <button
             key={taste}
-            onClick={() => onSelect(taste)}
-            className="p-4 bg-white border border-border-color rounded-lg text-text-primary font-semibold hover:bg-primary hover:text-white hover:border-primary focus:ring-2 focus:ring-primary focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md"
+            onClick={() => setSelectedTaste(taste)}
+            className={`p-4 border-2 rounded-lg font-semibold transition-all duration-200 shadow-sm ${selectedTaste === taste ? 'bg-primary border-primary text-white' : 'bg-white border-border-color text-text-primary hover:border-primary/50'}`}
           >
             {taste}
           </button>
         ))}
       </div>
+
+      {selectedTaste && (
+          <div className="mt-8 space-y-6 animate-fade-in">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-left">
+                  <p className="font-bold text-sm">Ingredient Suggestion:</p>
+                  <p className="text-sm">{TASTE_SUGGESTIONS[selectedTaste]}</p>
+              </div>
+              <button
+                onClick={() => onSelect(selectedTaste)}
+                className="w-full max-w-xs mx-auto bg-primary text-white font-bold py-3 px-6 rounded-lg transition-all hover:bg-primary-focus hover:shadow-lg transform hover:-translate-y-1"
+              >
+                Generate {selectedTaste} Recipe
+              </button>
+          </div>
+      )}
+
        {error && (
         <div className="mt-6 bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg text-center" role="alert">
             <strong className="font-bold">An error occurred: </strong>

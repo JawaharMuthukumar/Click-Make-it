@@ -6,19 +6,20 @@ interface HeaderProps {
   user: User | null;
   onLogout: () => void;
   onLoginClick: () => void;
+  onHomeClick: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, onLoginClick }) => {
+const Header: React.FC<HeaderProps> = ({ user, onLogout, onLoginClick, onHomeClick }) => {
   return (
     <header className="py-4 border-b border-border-color">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <button onClick={onHomeClick} className="flex items-center gap-3 text-left p-1 -ml-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-shadow">
             <ChefHatIcon className="w-9 h-9 text-primary" />
             <h1 className="text-2xl font-bold text-text-primary font-display">
               Click & Make It
             </h1>
-          </div>
+          </button>
           <div className="flex items-center gap-4">
             {user ? (
               <>

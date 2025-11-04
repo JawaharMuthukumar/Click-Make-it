@@ -1,0 +1,18 @@
+import React from 'react';
+
+export const NoCookIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    {...props}
+  >
+    <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      d="M12 3v18m-6.75-9H18.75M5.25 5.25l13.5 13.5M5.25 18.75l13.5-13.5" 
+    />
+  </svg>
+);
