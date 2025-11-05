@@ -2,6 +2,7 @@
   "name": "Click & Make It – AI Meal Maker",
   "description": "Turn any ingredients into an authentic Indian-style meal. Instantly. Snap a photo or list what you have, choose a regional Indian cuisine, and get a simple recipe right now.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

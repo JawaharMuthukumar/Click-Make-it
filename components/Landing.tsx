@@ -8,6 +8,7 @@ import { WasteIcon } from './icons/WasteIcon';
 import { CreativityIcon } from './icons/CreativityIcon';
 import { ConfidenceIcon } from './icons/ConfidenceIcon';
 import { UserAvatar } from './graphics/UserAvatar';
+import InspirationWidget from './InspirationWidget';
 
 interface LandingProps {
   onStartCooking: () => void;
@@ -98,9 +99,9 @@ const Landing: React.FC<LandingProps> = ({ onStartCooking }) => {
                         onClick={onStartCooking}
                         className="bg-primary text-white font-bold py-4 px-8 rounded-xl text-lg transition-all duration-300 hover:bg-primary-focus hover:shadow-lg transform hover:-translate-y-1"
                     >
-                        Start Your Free Trial
+                        Start Cooking Now
                     </button>
-                    <p className="mt-3 text-sm text-text-secondary">Your first 10 recipes are on us!</p>
+                    <p className="mt-3 text-sm text-text-secondary">It's free to try!</p>
                 </div>
             </div>
             <div className="flex justify-center">
@@ -172,6 +173,11 @@ const Landing: React.FC<LandingProps> = ({ onStartCooking }) => {
           </div>
       </section>
 
+      {/* Interactive Inspiration Widget Section */}
+      <section>
+          <InspirationWidget />
+      </section>
+
       {/* Testimonials Section */}
       <section>
           <div className="text-center max-w-3xl mx-auto">
@@ -204,7 +210,7 @@ const Landing: React.FC<LandingProps> = ({ onStartCooking }) => {
                     onClick={onStartCooking}
                     className="bg-primary text-white font-bold py-4 px-10 rounded-xl text-lg transition-all duration-300 hover:bg-primary-focus hover:shadow-lg transform hover:-translate-y-1"
                 >
-                    Start Your Free Trial
+                    Let's Get Cooking!
                 </button>
                  <p className="mt-3 text-sm text-text-secondary">Get 10 free recipes when you sign up.</p>
             </div>

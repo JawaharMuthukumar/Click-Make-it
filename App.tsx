@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import type { Recipe, User } from './types';
 import Header from './components/Header';
 import Auth from './components/Auth';
@@ -12,7 +12,6 @@ import { generateRecipe, extractIngredientsFromImage } from './services/geminiSe
 
 
 type AppStep = 'landing' | 'dashboard' | 'input' | 'customize' | 'generating' | 'recipe';
-type InputType = 'text' | 'image';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -26,7 +25,11 @@ const App: React.FC = () => {
   const handleLoginSuccess = (email: string) => {
     setUser({ email });
     setShowAuth(false);
-    setStep('dashboard');
+    // If we're logging in to see a recipe, don't change the step.
+    // Otherwise, go to the dashboard.
+    if (!recipe) {
+      setStep('dashboard');
+    }
   };
 
   const handleLogout = () => {
@@ -36,11 +39,7 @@ const App: React.FC = () => {
   };
 
   const handleStartCooking = () => {
-    if (user) {
-      setStep('dashboard');
-    } else {
-      setShowAuth(true);
-    }
+    setShowAuth(true);
   };
   
   const handleDashboardStart = () => {
@@ -65,11 +64,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCustomizationSubmit = async (data: { servings: number; method: string; style: string; cuisine: string; taste: string; }) => {
+  const handleCustomizationSubmit = async (data: { servings: number; method: string; style: string; cuisine: string; taste: string; creativity: string; }) => {
     setStep('generating');
     setError(null);
     try {
-      const result = await generateRecipe(ingredients, data.cuisine, data.taste, data.servings, data.method, data.style);
+      const result = await generateRecipe(ingredients, data.cuisine, data.taste, data.servings, data.method, data.style, data.creativity);
       setRecipe(result);
       setStep('recipe');
     } catch (err) {
@@ -79,16 +78,16 @@ const App: React.FC = () => {
   };
   
   const handleRegenerateRecipe = async (newMethod: string) => {
-    if (!ingredients || !recipe || !recipe.cuisine || !recipe.tasteProfile || !recipe.servings || !recipe.cookingStyle) {
+    if (!ingredients || !recipe || !recipe.cuisine || !recipe.tasteProfile || !recipe.servings || !recipe.cookingStyle || !recipe.creativityLevel) {
         setError("Could not regenerate recipe, missing context. Please start over.");
-        handleResetToDashboard();
+        handleStartOver();
         return;
     }
 
     setStep('generating');
     setError(null);
     try {
-        const result = await generateRecipe(ingredients, recipe.cuisine, recipe.tasteProfile, recipe.servings, newMethod, recipe.cookingStyle);
+        const result = await generateRecipe(ingredients, recipe.cuisine, recipe.tasteProfile, recipe.servings, newMethod, recipe.cookingStyle, recipe.creativityLevel);
         setRecipe(result);
         setStep('recipe');
     } catch (err) {
@@ -103,13 +102,7 @@ const App: React.FC = () => {
     setError(null);
   }
 
-  const handleResetToDashboard = () => {
-    setStep('dashboard');
-    resetRecipeState();
-  };
-  
-  const handleHomeClick = () => {
-    setShowAuth(false);
+  const handleStartOver = () => {
     resetRecipeState();
     if (user) {
       setStep('dashboard');
@@ -120,18 +113,16 @@ const App: React.FC = () => {
   
   const renderContent = () => {
     if (showAuth) {
-      return <Auth onLoginSuccess={handleLoginSuccess} onBackToHome={() => { setShowAuth(false); setStep('landing'); }} />;
-    }
-
-    if (!user) {
-      return <Landing onStartCooking={handleStartCooking} />;
+      return <Auth onLoginSuccess={handleLoginSuccess} onBack={() => { setShowAuth(false); }} />;
     }
 
     switch (step) {
+      case 'landing':
+        return <Landing onStartCooking={handleStartCooking} />;
       case 'dashboard':
-        return <Dashboard onStart={handleDashboardStart} />;
+        return user ? <Dashboard onStart={handleDashboardStart} /> : <Landing onStartCooking={handleStartCooking} />;
       case 'input':
-        return <IngredientInput onSubmit={handleIngredientsSubmit} onBack={handleResetToDashboard} error={error} />;
+        return <IngredientInput onSubmit={handleIngredientsSubmit} onBack={handleStartOver} error={error} />;
       case 'customize':
         return <RecipeCustomization ingredients={ingredients} onSubmit={handleCustomizationSubmit} onBack={() => setStep('input')} error={error} />
       case 'generating':
@@ -143,15 +134,15 @@ const App: React.FC = () => {
           </div>
         );
       case 'recipe':
-        return recipe ? <RecipeDisplay recipe={recipe} onReset={handleResetToDashboard} onRegenerate={handleRegenerateRecipe} /> : null;
+        return recipe ? <RecipeDisplay recipe={recipe} user={user} onReset={handleStartOver} onRegenerate={handleRegenerateRecipe} onUnlockRequest={() => setShowAuth(true)} /> : null;
       default:
-        return <Dashboard onStart={handleDashboardStart} />;
+        return user ? <Dashboard onStart={handleDashboardStart} /> : <Landing onStartCooking={handleStartCooking} />;
     }
   }
 
   return (
     <div className="min-h-screen font-sans flex flex-col">
-      <Header user={user} onLogout={handleLogout} onLoginClick={() => setShowAuth(true)} onHomeClick={handleHomeClick} />
+      <Header user={user} onLogout={handleLogout} onLoginClick={() => setShowAuth(true)} onHomeClick={handleStartOver} />
       <main className="flex-grow w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
         {renderContent()}
       </main>

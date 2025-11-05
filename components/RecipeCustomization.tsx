@@ -8,7 +8,7 @@ import type { Cuisine } from '../types';
 
 interface RecipeCustomizationProps {
   ingredients: string;
-  onSubmit: (data: { servings: number; method: string; style: string; cuisine: string; taste: string; }) => void;
+  onSubmit: (data: { servings: number; method: string; style: string; cuisine: string; taste: string; creativity: string; }) => void;
   onBack: () => void;
   error: string | null;
 }
@@ -27,6 +27,7 @@ const RecipeCustomization: React.FC<RecipeCustomizationProps> = ({ ingredients, 
     const [selectedCuisine, setSelectedCuisine] = useState<Cuisine>(CUISINES[0]);
     const [selectedStyleName, setSelectedStyleName] = useState<string | null>(null);
     const [taste, setTaste] = useState(TASTE_PROFILES[0]);
+    const [creativity, setCreativity] = useState<'Standard' | 'Gourmet'>('Standard');
 
     const handleServingsChange = (amount: number) => {
         setServings(prev => Math.max(1, prev + amount));
@@ -35,7 +36,7 @@ const RecipeCustomization: React.FC<RecipeCustomizationProps> = ({ ingredients, 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const finalCuisine = selectedStyleName ? `${selectedCuisine.name} (${selectedStyleName})` : selectedCuisine.name;
-        onSubmit({ servings, method, style, cuisine: finalCuisine, taste });
+        onSubmit({ servings, method, style, cuisine: finalCuisine, taste, creativity });
     };
 
     const methodIcons: { [key: string]: React.ReactNode } = {
@@ -82,6 +83,30 @@ const RecipeCustomization: React.FC<RecipeCustomizationProps> = ({ ingredients, 
                         </div>
                     </Section>
                 </div>
+
+                <Section title="Creativity Level">
+                    <div className="flex bg-slate-100 p-1 rounded-lg max-w-sm mx-auto">
+                        <button
+                            type="button"
+                            onClick={() => setCreativity('Standard')}
+                            className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${creativity === 'Standard' ? 'bg-white shadow-sm text-primary' : 'text-text-secondary hover:bg-slate-200'}`}
+                        >
+                            Standard
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setCreativity('Gourmet')}
+                            className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${creativity === 'Gourmet' ? 'bg-white shadow-sm text-primary' : 'text-text-secondary hover:bg-slate-200'}`}
+                        >
+                            Gourmet
+                        </button>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-2 text-center max-w-sm mx-auto">
+                        {creativity === 'Standard'
+                            ? 'Quick, reliable recipes. Best for everyday cooking.'
+                            : 'More complex and creative results from a more powerful AI model.'}
+                    </p>
+                </Section>
 
                 <Section title="Primary Appliance">
                     <div className="grid grid-cols-3 gap-4">

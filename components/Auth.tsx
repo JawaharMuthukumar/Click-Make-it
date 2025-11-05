@@ -3,10 +3,10 @@ import { LockClosedIcon } from './icons/LockClosedIcon';
 
 interface AuthProps {
   onLoginSuccess: (email: string) => void;
-  onBackToHome: () => void;
+  onBack: () => void;
 }
 
-const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onBackToHome }) => {
+const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onBack }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -153,10 +153,10 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onBackToHome }) => {
 
        <div className="text-center mt-6">
             <button 
-                onClick={onBackToHome}
+                onClick={onBack}
                 className="text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
-                &larr; Or go back to Home
+                &larr; Go Back
             </button>
         </div>
     </div>

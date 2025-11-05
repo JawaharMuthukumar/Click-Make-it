@@ -7,14 +7,16 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const fileToBase64 = (file: File): Promise<string> => {
+const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
     reader.onload = () => resolve((reader.result as string).split(',')[1]);
     reader.onerror = (error) => reject(error);
   });
 };
+
+const fileToBase64 = (file: File): Promise<string> => blobToBase64(file);
 
 export const extractIngredientsFromImage = async (file: File): Promise<string> => {
     const base64Data = await fileToBase64(file);
@@ -36,14 +38,37 @@ export const extractIngredientsFromImage = async (file: File): Promise<string> =
     return response.text.trim();
 }
 
+export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+    const base64Data = await blobToBase64(audioBlob);
+    const audioPart = {
+        inlineData: {
+            mimeType: audioBlob.type,
+            data: base64Data,
+        },
+    };
+    const textPart = {
+        text: "Transcribe the following audio recording of a person listing their cooking ingredients or asking a question about a recipe. Provide only the transcribed text.",
+    };
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [audioPart, textPart] },
+    });
+
+    return response.text.trim();
+};
+
+
 export const generateRecipe = async (
     ingredients: string, 
     cuisine: string, 
     tasteProfile: string,
     servings: number,
     cookingMethod: string,
-    cookingStyle: string
+    cookingStyle: string,
+    creativityLevel: string
 ): Promise<Recipe> => {
+    const modelName = creativityLevel === 'Gourmet' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
     const prompt = `
         Given the following constraints:
         - Ingredients: ${ingredients}
@@ -53,7 +78,10 @@ export const generateRecipe = async (
         - Primary Cooking Appliance: ${cookingMethod === 'No-Cook' ? 'None (the recipe should require no heat or cooking, like a fresh salad, sandwich, or wrap)' : cookingMethod}
         - Desired Cooking Style: ${cookingStyle}
 
-        Generate a simple recipe that an amateur cook can make. The recipe should be authentic and representative of the selected Indian cuisine. For example, if the cuisine is 'Tamil Nadu', a dish like Sambar or Poriyal would be appropriate. If it's 'Punjabi', something like a simple dal makhani or a tandoori-style dish would be great.
+        ${creativityLevel === 'Gourmet' 
+            ? 'Generate a sophisticated and creative recipe, suitable for an adventurous cook or a special occasion. Feel free to suggest more complex flavor pairings or techniques.' 
+            : 'Generate a simple recipe that an amateur cook can make.'}
+        The recipe should be authentic and representative of the selected Indian cuisine. For example, if the cuisine is 'Tamil Nadu', a dish like Sambar or Poriyal would be appropriate. If it's 'Punjabi', something like a simple dal makhani or a tandoori-style dish would be great.
         IMPORTANT: Adapt the traditional recipe to creatively incorporate the user's provided ingredients, even if they are not typical for that cuisine. The final dish must have a distinctly Indian flavor profile.
         Provide a creative name for the recipe.
         Provide a short, one-sentence description.
@@ -67,7 +95,7 @@ export const generateRecipe = async (
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelName,
         contents: prompt,
         config: {
             responseMimeType: "application/json",
@@ -129,6 +157,7 @@ export const generateRecipe = async (
         recipeData.cuisine = cuisine;
         recipeData.tasteProfile = tasteProfile;
         recipeData.cookingStyle = cookingStyle;
+        recipeData.creativityLevel = creativityLevel;
         return recipeData;
     } catch (e) {
         console.error("Failed to parse recipe JSON:", e);
@@ -159,4 +188,40 @@ export const startChat = (recipe: Recipe): Chat => {
     });
 
     return chat;
+};
+
+export const getInspiration = async (ingredients: string): Promise<string[]> => {
+    const prompt = `
+        Given the following ingredients: "${ingredients}".
+        Generate a list of exactly 4 creative and appealing Indian recipe names.
+        The names should be short, enticing, and sound like real dishes. Do not add any extra explanation or text.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    ideas: {
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING },
+                        description: "A list of exactly 4 recipe name ideas."
+                    }
+                },
+                required: ["ideas"],
+            },
+        },
+    });
+
+    const jsonText = response.text;
+    try {
+        const data = JSON.parse(jsonText) as { ideas: string[] };
+        return data.ideas;
+    } catch (e) {
+        console.error("Failed to parse inspiration JSON:", e);
+        throw new Error("The AI returned an unexpected format for inspiration. Please try again.");
+    }
 };

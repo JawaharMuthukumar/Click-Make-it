@@ -32,6 +32,7 @@ export interface Recipe {
   cuisine?: string;
   tasteProfile?: string;
   cookingStyle?: string;
+  creativityLevel?: string;
 }
 
 export interface User {

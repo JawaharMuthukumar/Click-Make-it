@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import type { Recipe, DetailedNutrition } from '../types';
+import type { Recipe, DetailedNutrition, User } from '../types';
 import { LeafIcon } from './icons/LeafIcon';
 import { ListChecksIcon } from './icons/ListChecksIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { ChatBubbleIcon } from './icons/ChatBubbleIcon';
 import ChatAssistant from './ChatAssistant';
 import { COOKING_METHODS } from '../constants';
+import { SparklesIcon } from './icons/SparklesIcon';
+import UnlockRecipe from './UnlockRecipe';
 
 interface RecipeDisplayProps {
   recipe: Recipe;
+  user: User | null;
   onReset: () => void;
   onRegenerate: (newMethod: string) => void;
+  onUnlockRequest: () => void;
 }
 
 const NutritionInfo: React.FC<{ nutrition: DetailedNutrition }> = ({ nutrition }) => {
@@ -41,8 +45,8 @@ const NutritionInfo: React.FC<{ nutrition: DetailedNutrition }> = ({ nutrition }
   );
 };
 
-const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
-  <div className="mt-8 pt-6 border-t border-border-color">
+const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; isLocked?: boolean }> = ({ title, icon, children, isLocked = false }) => (
+  <div className="mt-8 pt-6 border-t border-border-color relative">
     <div className="flex items-center gap-3 mb-4">
       {icon}
       <h3 className="text-2xl font-bold font-display text-text-primary">{title}</h3>
@@ -51,9 +55,10 @@ const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.
   </div>
 );
 
-const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, onReset, onRegenerate }) => {
+const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, user, onReset, onRegenerate, onUnlockRequest }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const otherMethods = COOKING_METHODS.filter(m => m !== recipe.cookingMethod);
+  const isLocked = !user;
   
   return (
     <div className="animate-fade-in w-full">
@@ -63,6 +68,12 @@ const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, onReset, onRegene
             {recipe.servings && (
                 <span className="bg-emerald-100 text-emerald-800 text-sm font-semibold px-3 py-1 rounded-full">
                     Serves {recipe.servings}
+                </span>
+            )}
+             {recipe.creativityLevel && (
+                <span className="bg-sky-100 text-sky-800 text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                    <SparklesIcon className="w-4 h-4" />
+                    {recipe.creativityLevel}
                 </span>
             )}
         </div>
@@ -100,18 +111,26 @@ const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, onReset, onRegene
         </Section>
         
         <Section title="Instructions" icon={<ListChecksIcon className="w-7 h-7 text-primary" />}>
-          <ol className="space-y-4 text-text-primary">
-            {recipe.instructions.map((step, index) => 
-              <li key={index} className="flex items-start">
-                <span className="font-bold font-display text-primary mr-4">{index + 1}.</span>
-                <span>{step}</span>
-              </li>
-            )}
-          </ol>
+          <div className="relative">
+            {isLocked && <UnlockRecipe onUnlock={onUnlockRequest} />}
+            <ol className={`space-y-4 text-text-primary transition-all duration-300 ${isLocked ? 'blur-sm select-none' : ''}`}>
+              {recipe.instructions.map((step, index) => 
+                <li key={index} className="flex items-start">
+                  <span className="font-bold font-display text-primary mr-4">{index + 1}.</span>
+                  <span>{step}</span>
+                </li>
+              )}
+            </ol>
+          </div>
         </Section>
 
         <Section title="Nutrition Details" icon={<ChartBarIcon className="w-7 h-7 text-primary" />}>
-           <NutritionInfo nutrition={recipe.nutrition} />
+          <div className="relative">
+            {isLocked && <UnlockRecipe onUnlock={onUnlockRequest} />}
+            <div className={`transition-all duration-300 ${isLocked ? 'blur-sm select-none' : ''}`}>
+              <NutritionInfo nutrition={recipe.nutrition} />
+            </div>
+          </div>
         </Section>
       </div>
 
@@ -120,20 +139,24 @@ const RecipeDisplay: React.FC<RecipeDisplayProps> = ({ recipe, onReset, onRegene
           onClick={onReset}
           className="font-semibold py-3 px-8 rounded-lg transition-all duration-300 bg-primary text-white hover:bg-primary-focus shadow-md hover:shadow-lg"
         >
-          Make Another Meal
+          {isLocked ? 'Start Over' : 'Make Another Meal'}
         </button>
       </div>
 
-      <button
-        onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-6 right-6 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary-focus focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-transform transform hover:scale-110 z-50"
-        aria-label="Open AI Assistant"
-      >
-        <ChatBubbleIcon className="w-8 h-8" />
-      </button>
+      {!isLocked && (
+        <>
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary-focus focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-transform transform hover:scale-110 z-50"
+          aria-label="Open AI Assistant"
+        >
+          <ChatBubbleIcon className="w-8 h-8" />
+        </button>
 
-      {isChatOpen && (
-        <ChatAssistant recipe={recipe} onClose={() => setIsChatOpen(false)} />
+        {isChatOpen && (
+          <ChatAssistant recipe={recipe} onClose={() => setIsChatOpen(false)} />
+        )}
+        </>
       )}
     </div>
   );
