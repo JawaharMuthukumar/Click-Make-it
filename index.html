@@ -6,24 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO and Core Meta Tags -->
-    <title>Click & Make It: AI Indian Recipe Generator from Ingredients</title>
-    <meta name="description" content="Turn any ingredients into an authentic Indian-style meal. Instantly. Snap a photo or list what you have, choose a regional Indian cuisine, and get a simple recipe right now." />
-    <meta name="keywords" content="AI recipe generator, recipe from ingredients, Indian food recipes, AI cooking assistant, what to cook, reduce food waste, meal planner AI, authentic indian food" />
-    <link rel="canonical" href="https://clickandmakeit.ai" />
+    <title>Foody Makeit: AI Recipe Generator from Ingredients</title>
+    <meta name="description" content="Turn any ingredients into an authentic meal. Instantly. List what you have, choose a cuisine, and get a simple recipe right now." />
+    <meta name="keywords" content="AI recipe generator, recipe from ingredients, food recipes, AI cooking assistant, what to cook, reduce food waste, meal planner AI" />
+    <link rel="canonical" href="https://foodymakeit.ai" />
 
     <!-- Open Graph / Facebook Meta Tags -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://clickandmakeit.ai" />
-    <meta property="og:title" content="Click & Make It: AI Indian Recipe Generator from Ingredients" />
-    <meta property="og:description" content="Turn any ingredients into an authentic Indian-style meal. Instantly. Snap a photo or list what you have, and our AI generates a delicious, easy-to-follow recipe." />
-    <meta property="og:image" content="https://clickandmakeit.ai/og-image.png" />
+    <meta property="og:url" content="https://foodymakeit.ai" />
+    <meta property="og:title" content="Foody Makeit: AI Recipe Generator from Ingredients" />
+    <meta property="og:description" content="Turn any ingredients into an authentic meal. Instantly. List what you have, and our AI generates a delicious, easy-to-follow recipe." />
+    <meta property="og:image" content="https://foodymakeit.ai/og-image.png" />
 
     <!-- Twitter Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://clickandmakeit.ai" />
-    <meta name="twitter:title" content="Click & Make It: AI Indian Recipe Generator from Ingredients" />
-    <meta name="twitter:description" content="Turn any ingredients into an authentic Indian-style meal. Instantly. Snap a photo or list what you have, and our AI generates a delicious, easy-to-follow recipe." />
-    <meta name="twitter:image" content="https://clickandmakeit.ai/og-image.png" />
+    <meta name="twitter:url" content="https://foodymakeit.ai" />
+    <meta name="twitter:title" content="Foody Makeit: AI Recipe Generator from Ingredients" />
+    <meta name="twitter:description" content="Turn any ingredients into an authentic meal. Instantly. List what you have, and our AI generates a delicious, easy-to-follow recipe." />
+    <meta name="twitter:image" content="https://foodymakeit.ai/og-image.png" />
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,7 +34,7 @@
         theme: {
           extend: {
             colors: {
-              background: '#F8FAFC', // Slate 50
+              background: '#FFFFFF', // White
               surface: '#FFFFFF', // White
               primary: '#10B981', // Emerald 500
               'primary-focus': '#059669', // Emerald 600
@@ -61,6 +61,10 @@
               'fade-in': 'fadeIn 0.5s ease-out forwards',
               'fade-in-slide-up': 'fadeInSlideUp 0.6s ease-out forwards',
               'shake': 'shake 0.4s ease-in-out',
+              'float': 'float 6s ease-in-out infinite',
+              'blob': 'blob 7s infinite',
+              'text-gradient': 'textGradient 3s ease infinite',
+              'scan': 'scan 3s linear infinite',
             },
             keyframes: {
               fadeIn: {
@@ -75,6 +79,30 @@
                 '0%, 100%': { transform: 'translateX(0)' },
                 '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-1px)' },
                 '20%, 40%, 60%, 80%': { transform: 'translateX(1px)' },
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' },
+              },
+              blob: {
+                "0%": { transform: "translate(0px, 0px) scale(1)" },
+                "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                "100%": { transform: "translate(0px, 0px) scale(1)" }
+              },
+              textGradient: {
+                  '0%, 100%': {
+                      'background-size': '200% 200%',
+                      'background-position': 'left center'
+                  },
+                  '50%': {
+                      'background-size': '200% 200%',
+                      'background-position': 'right center'
+                  },
+              },
+              scan: {
+                '0%': { left: '-100%' },
+                '100%': { left: '200%' }
               }
             },
           }
@@ -87,16 +115,21 @@
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/analytics": "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
   }
 }
-    </script>
+</script>
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "Click & Make It – AI Meal Maker",
+      "name": "Foody Makeit – AI Meal Maker",
       "operatingSystem": "Web",
       "applicationCategory": "LifestyleApplication",
       "aggregateRating": {
@@ -109,17 +142,16 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "An AI-powered recipe generator that creates authentic Indian-style meals from ingredients you already have. Snap a photo or list your ingredients to get a custom recipe in seconds, helping you reduce food waste and cook with confidence.",
+      "description": "An AI-powered recipe generator that creates authentic meals from ingredients you already have. List your ingredients to get a custom recipe in seconds, helping you reduce food waste and cook with confidence.",
       "featureList": [
-        "AI ingredient recognition from photos",
         "Text and voice-based ingredient input",
-        "Specialization in regional Indian cuisines",
+        "Specialization in global cuisines",
         "Recipe customization for taste, servings, and cooking style",
         "Step-by-step cooking instructions",
         "Detailed nutritional analysis for every meal",
         "AI chat assistant for cooking questions"
       ],
-      "keywords": "AI recipe generator, recipe from ingredients, Indian food recipes"
+      "keywords": "AI recipe generator, recipe from ingredients, Food recipes"
     }
     </script>
 </head>

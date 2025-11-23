@@ -20,8 +20,8 @@ export const HeroGraphic: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
       </filter>
     </defs>
     
-    {/* Ingredients */}
-    <g filter="url(#drop-shadow)">
+    {/* Ingredients - Floating Animation */}
+    <g filter="url(#drop-shadow)" className="animate-[float_5s_ease-in-out_infinite]">
       {/* Tomato */}
       <circle cx="60" cy="150" r="25" fill="#ef4444" />
       <path d="M 60 125 C 65 130, 70 125, 65 120" fill="#22c55e" stroke="#16a34a" strokeWidth="2" />
@@ -43,8 +43,8 @@ export const HeroGraphic: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </g>
     
     {/* Arrow */}
-    <path d="M 160 150 C 200 100, 240 200, 280 150" stroke="url(#hero-grad)" strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray="10 10" />
-    <path d="M 270 140 L 280 150 L 270 160" stroke="url(#hero-grad)" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M 160 150 C 200 100, 240 200, 280 150" stroke="url(#hero-grad)" strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray="10 10" className="animate-pulse" />
+    <path d="M 270 140 L 280 150 L 270 160" stroke="url(#hero-grad)" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse" />
     
     {/* Plate */}
     <g transform="translate(320 150)">

@@ -24,11 +24,14 @@ const CuisineSelector: React.FC<CuisineSelectorProps> = ({ ingredients, onSelect
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
         {CUISINES.map((cuisine) => (
           <button
-            key={cuisine}
-            onClick={() => onSelect(cuisine)}
+            // FIX: Use `cuisine.name` for the key, as `cuisine` is an object.
+            key={cuisine.name}
+            // FIX: Pass `cuisine.name` (a string) to the `onSelect` handler.
+            onClick={() => onSelect(cuisine.name)}
             className="p-4 bg-white border border-border-color rounded-lg text-text-primary font-semibold hover:bg-primary hover:text-white hover:border-primary focus:ring-2 focus:ring-primary focus:outline-none transition-all duration-200 shadow-sm hover:shadow-md"
           >
-            {cuisine}
+            {/* FIX: Render the `cuisine.name` string, not the `cuisine` object. */}
+            {cuisine.name}
           </button>
         ))}
       </div>

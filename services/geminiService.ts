@@ -1,5 +1,6 @@
-import { GoogleGenAI, Type, Chat } from "@google/genai";
-import type { Recipe } from '../types';
+
+import { GoogleGenAI, Type, Chat, Modality } from "@google/genai";
+import type { Recipe, DishOption } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -16,26 +17,35 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
-const fileToBase64 = (file: File): Promise<string> => blobToBase64(file);
+// Helper: Decode Base64 string to Uint8Array
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
-export const extractIngredientsFromImage = async (file: File): Promise<string> => {
-    const base64Data = await fileToBase64(file);
-    const imagePart = {
-      inlineData: {
-        mimeType: file.type,
-        data: base64Data,
-      },
-    };
-    const textPart = {
-      text: "Identify all the food ingredients in this image. List them as a single comma-separated string. For example: 'tomatoes, onions, chicken breast, olive oil'.",
-    };
+// Helper: Convert raw PCM data (Int16) to AudioBuffer (Float32)
+function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): AudioBuffer {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [imagePart, textPart] },
-    });
-    
-    return response.text.trim();
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
 }
 
 export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
@@ -47,7 +57,7 @@ export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
         },
     };
     const textPart = {
-        text: "Transcribe the following audio recording of a person listing their cooking ingredients or asking a question about a recipe. Provide only the transcribed text.",
+        text: "Transcribe the following audio recording of a person listing their cooking ingredients or asking a question about a recipe. Provide only the transcribed text exactly as spoken in its original language.",
     };
 
     const response = await ai.models.generateContent({
@@ -55,13 +65,165 @@ export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
         contents: { parts: [audioPart, textPart] },
     });
 
-    return response.text.trim();
+    return response.text?.trim() || "";
 };
 
+export const playTextToSpeech = async (text: string): Promise<void> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: { parts: [{ text }] },
+            config: {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName: 'Kore' },
+                    },
+                },
+            },
+        });
+
+        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (!base64Audio) throw new Error("No audio data returned");
+
+        const sampleRate = 24000;
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate });
+        
+        // Manually decode raw PCM data
+        const audioBuffer = decodeAudioData(
+          decode(base64Audio),
+          audioContext,
+          sampleRate,
+          1 // Mono channel
+        );
+
+        return new Promise((resolve) => {
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination);
+            source.onended = () => {
+                resolve();
+            };
+            source.start(0);
+        });
+
+    } catch (error) {
+        console.error("TTS Error:", error);
+        throw error; // Re-throw to handle in UI
+    }
+};
+
+export const generateImage = async (prompt: string): Promise<string | undefined> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: prompt }]
+            },
+            config: {
+                imageConfig: {
+                    aspectRatio: "4:3",
+                }
+            }
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return part.inlineData.data;
+            }
+        }
+        return undefined;
+    } catch (error) {
+        console.error("Image generation error:", error);
+        return undefined;
+    }
+};
+
+export const generateDishOptions = async (
+    ingredients: string,
+    country: string,
+    state: string,
+    mealType: string,
+    tasteProfile: string,
+    cookingMethod: string,
+    cookingStyle: string,
+    creativityLevel: string
+): Promise<DishOption[]> => {
+    const modelName = creativityLevel === 'Gourmet' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+    const prompt = `
+        You are an expert chef. Based on the following user inputs, suggest exactly 3 distinct and creative dish ideas.
+        
+        Inputs:
+        - Ingredients/Idea: "${ingredients}"
+        - Cuisine: ${country} ${state ? `(${state} region)` : ''}
+        - Meal Type: ${mealType}
+        - Taste Profile: ${tasteProfile}
+        - Method: ${cookingMethod}
+        
+        For each dish, provide:
+        1. A catchy, authentic name.
+        2. A short, appetizing description (max 2 sentences).
+        3. A visual description suitable for an AI image generator to create a photo of the dish.
+        
+        Return strictly JSON format with the following schema:
+        {
+          "options": [
+            { "name": "...", "description": "...", "imagePrompt": "..." }
+          ]
+        }
+    `;
+
+    const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    options: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                name: { type: Type.STRING },
+                                description: { type: Type.STRING },
+                                imagePrompt: { type: Type.STRING }
+                            },
+                            required: ["name", "description", "imagePrompt"]
+                        }
+                    }
+                },
+                required: ["options"]
+            }
+        }
+    });
+
+    let options: DishOption[] = [];
+    try {
+        const data = JSON.parse(response.text || "{}");
+        options = data.options || [];
+    } catch (e) {
+        console.error("Failed to parse dish options:", e);
+        throw new Error("Failed to generate dish ideas.");
+    }
+
+    // Generate images for all options in parallel
+    const imagePromises = options.map(async (opt) => {
+        const imageBase64 = await generateImage(`A professional, appetizing food photography shot of ${opt.name}: ${opt.imagePrompt}. High resolution, photorealistic, ${country} cuisine style.`);
+        return { ...opt, imageBase64 };
+    });
+
+    return Promise.all(imagePromises);
+};
 
 export const generateRecipe = async (
-    ingredients: string, 
-    cuisine: string, 
+    dishName: string,
+    dishDescription: string,
+    ingredients: string,
+    country: string,
+    state: string,
+    mealType: string,
     tasteProfile: string,
     servings: number,
     cookingMethod: string,
@@ -70,28 +232,25 @@ export const generateRecipe = async (
 ): Promise<Recipe> => {
     const modelName = creativityLevel === 'Gourmet' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
     const prompt = `
-        Given the following constraints:
-        - Ingredients: ${ingredients}
-        - Desired Cuisine: ${cuisine === 'Any' ? 'any Indian regional style' : cuisine}
-        - Desired Taste Profile: ${tasteProfile} (Please emphasize this taste in the recipe)
-        - Number of Servings: ${servings}
-        - Primary Cooking Appliance: ${cookingMethod === 'No-Cook' ? 'None (the recipe should require no heat or cooking, like a fresh salad, sandwich, or wrap)' : cookingMethod}
-        - Desired Cooking Style: ${cookingStyle}
-
-        ${creativityLevel === 'Gourmet' 
-            ? 'Generate a sophisticated and creative recipe, suitable for an adventurous cook or a special occasion. Feel free to suggest more complex flavor pairings or techniques.' 
-            : 'Generate a simple recipe that an amateur cook can make.'}
-        The recipe should be authentic and representative of the selected Indian cuisine. For example, if the cuisine is 'Tamil Nadu', a dish like Sambar or Poriyal would be appropriate. If it's 'Punjabi', something like a simple dal makhani or a tandoori-style dish would be great.
-        IMPORTANT: Adapt the traditional recipe to creatively incorporate the user's provided ingredients, even if they are not typical for that cuisine. The final dish must have a distinctly Indian flavor profile.
-        Provide a creative name for the recipe.
-        Provide a short, one-sentence description.
-        List the necessary ingredients (can include minor additions like salt, pepper, oil if essential), scaled for the specified number of servings.
-        Provide clear, step-by-step instructions. ${cookingMethod === 'No-Cook' ? 'These instructions must not involve any cooking, boiling, or heating.' : 'These instructions should primarily use the specified cooking appliance.'}
-        Finally, provide a detailed nutritional analysis for a single serving. This should include:
-        - An estimated calorie range as a string (e.g., "~450-500 kcal").
-        - For Protein: provide an estimated range in grams as a string (e.g., "38-42g") and a brief description of the primary sources.
-        - For Carbohydrates: provide an estimated range in grams as a string (e.g., "40-45g") and a brief description of the primary sources.
-        - For Fat: provide an estimated range in grams as a string (e.g., "10-14g") and a brief description of the primary sources.
+        Create a detailed cooking recipe for: "${dishName}".
+        
+        Context:
+        - User's original input: "${ingredients}"
+        - Cuisine: ${country}${state ? `, specifically from the ${state} region` : ''}
+        - Meal Type: ${mealType}
+        - Taste Profile: ${tasteProfile}
+        - Servings: ${servings}
+        - Primary Appliance: ${cookingMethod}
+        - Style: ${cookingStyle}
+        
+        Description constraint: Use this description as a base: "${dishDescription}".
+        
+        The recipe should be authentic to the selected region.
+        Provide a list of ingredients (with quantities), step-by-step instructions, and detailed nutrition for one serving.
+        
+        Nutrition Requirements:
+        - Calorie range (e.g., "~450-500 kcal")
+        - Protein, Carbs, Fat: Amount (e.g. "30g") and primary source description.
     `;
 
     const response = await ai.models.generateContent({
@@ -115,86 +274,88 @@ export const generateRecipe = async (
                     nutrition: {
                         type: Type.OBJECT,
                         properties: {
-                            calories: { type: Type.STRING, description: "Estimated calorie range, e.g., '~450-500 kcal'" },
+                            calories: { type: Type.STRING },
                             protein: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    amount: { type: Type.STRING, description: "e.g., '38-42g'" },
-                                    source: { type: Type.STRING, description: "Primary sources of protein" }
+                                    amount: { type: Type.STRING },
+                                    source: { type: Type.STRING }
                                 },
                                 required: ["amount", "source"]
                             },
                             carbohydrates: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    amount: { type: Type.STRING, description: "e.g., '40-45g'" },
-                                    source: { type: Type.STRING, description: "Primary sources of carbohydrates" }
+                                    amount: { type: Type.STRING },
+                                    source: { type: Type.STRING }
                                 },
                                 required: ["amount", "source"]
                             },
                             fat: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    amount: { type: Type.STRING, description: "e.g., '10-14g'" },
-                                    source: { type: Type.STRING, description: "Primary sources of fat" }
+                                    amount: { type: Type.STRING },
+                                    source: { type: Type.STRING }
                                 },
                                 required: ["amount", "source"]
                             }
                         },
                         required: ["calories", "protein", "carbohydrates", "fat"]
-                    },
+                    }
                 },
-                required: ["recipeName", "description", "ingredients", "instructions", "nutrition"],
-            },
-        },
+                required: ["recipeName", "description", "ingredients", "instructions", "nutrition"]
+            }
+        }
     });
 
-    const jsonText = response.text;
     try {
-        const recipeData = JSON.parse(jsonText) as Recipe;
-        recipeData.servings = servings;
-        recipeData.cookingMethod = cookingMethod;
-        recipeData.cuisine = cuisine;
-        recipeData.tasteProfile = tasteProfile;
-        recipeData.cookingStyle = cookingStyle;
-        recipeData.creativityLevel = creativityLevel;
-        return recipeData;
+        const recipeData = JSON.parse(response.text || "{}");
+        return {
+            ...recipeData,
+            servings,
+            cookingMethod,
+            country,
+            state,
+            mealType,
+            tasteProfile,
+            cookingStyle,
+            creativityLevel
+        } as Recipe;
     } catch (e) {
-        console.error("Failed to parse recipe JSON:", e);
-        throw new Error("The AI returned an unexpected format. Please try again.");
+        console.error("Failed to parse recipe:", e);
+        throw new Error("Failed to generate full recipe.");
     }
 };
 
 export const startChat = (recipe: Recipe): Chat => {
-    const recipeContext = `
-      You are a helpful, friendly cooking assistant specializing in Indian cuisine. The user is currently making the following recipe and has some questions.
-      Your answers should be concise and directly related to the recipe context provided below.
-      Do not suggest completely different recipes unless asked for a substitution.
-
-      RECIPE CONTEXT:
-      - Recipe Name: ${recipe.recipeName}
-      - Description: ${recipe.description}
-      - Ingredients: ${recipe.ingredients.join(', ')}
-      - Instructions:
-      ${recipe.instructions.map((step, i) => `${i + 1}. ${step}`).join('\n')}
-      - Nutrition: Calories: ${recipe.nutrition.calories}, Protein: ${recipe.nutrition.protein.amount}, Carbs: ${recipe.nutrition.carbohydrates.amount}, Fat: ${recipe.nutrition.fat.amount}
+    const systemInstruction = `
+        You are a helpful cooking assistant for the recipe "${recipe.recipeName}".
+        
+        Recipe Details:
+        - Description: ${recipe.description}
+        - Ingredients: ${recipe.ingredients.join(', ')}
+        - Instructions: ${recipe.instructions.join(' -> ')}
+        - Cuisine: ${recipe.country} ${recipe.state ? `(${recipe.state})` : ''}
+        - Nutrition: ${recipe.nutrition.calories}, P: ${recipe.nutrition.protein.amount}, C: ${recipe.nutrition.carbohydrates.amount}, F: ${recipe.nutrition.fat.amount}
+        
+        Your goal is to help the user cook this specific recipe. Answer questions about substitutions, techniques, or steps.
+        Keep answers concise and encouraging.
     `;
 
-    const chat = ai.chats.create({
-        model: 'gemini-2.5-flash',
+    return ai.chats.create({
+        model: "gemini-2.5-flash",
         config: {
-            systemInstruction: recipeContext,
-        },
+            systemInstruction: systemInstruction
+        }
     });
-
-    return chat;
 };
 
 export const getInspiration = async (ingredients: string): Promise<string[]> => {
     const prompt = `
-        Given the following ingredients: "${ingredients}".
-        Generate a list of exactly 4 creative and appealing Indian recipe names.
-        The names should be short, enticing, and sound like real dishes. Do not add any extra explanation or text.
+        I have these ingredients: "${ingredients}".
+        Suggest 5 short, creative, and distinct dish names I could make with these ingredients.
+        Return only a JSON array of strings.
+        Example: ["Spicy Tomato Pasta", "Grilled Chicken Salad", ...]
     `;
 
     const response = await ai.models.generateContent({
@@ -203,25 +364,16 @@ export const getInspiration = async (ingredients: string): Promise<string[]> => 
         config: {
             responseMimeType: "application/json",
             responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    ideas: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING },
-                        description: "A list of exactly 4 recipe name ideas."
-                    }
-                },
-                required: ["ideas"],
-            },
-        },
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+            }
+        }
     });
 
-    const jsonText = response.text;
     try {
-        const data = JSON.parse(jsonText) as { ideas: string[] };
-        return data.ideas;
+        return JSON.parse(response.text || "[]");
     } catch (e) {
-        console.error("Failed to parse inspiration JSON:", e);
-        throw new Error("The AI returned an unexpected format for inspiration. Please try again.");
+        console.error("Failed to parse inspiration:", e);
+        return [];
     }
 };
